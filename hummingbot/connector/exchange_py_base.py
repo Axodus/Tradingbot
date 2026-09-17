@@ -282,12 +282,16 @@ class ExchangePyBase(ExchangeBase, ABC):
 
         :return: the id assigned by the connector to the order (the client id)
         """
-        order_id = get_new_client_order_id(
-            is_buy=True,
-            trading_pair=trading_pair,
-            hbot_order_id_prefix=self.client_order_id_prefix,
-            max_id_len=self.client_order_id_max_length
-        )
+        caller_order_id = kwargs.pop("client_order_id", None)
+        if caller_order_id is not None:
+            order_id = str(caller_order_id)
+        else:
+            order_id = get_new_client_order_id(
+                is_buy=True,
+                trading_pair=trading_pair,
+                hbot_order_id_prefix=self.client_order_id_prefix,
+                max_id_len=self.client_order_id_max_length
+            )
         safe_ensure_future(self._create_order(
             trade_type=TradeType.BUY,
             order_id=order_id,
@@ -312,12 +316,16 @@ class ExchangePyBase(ExchangeBase, ABC):
         :param price: the order price
         :return: the id assigned by the connector to the order (the client id)
         """
-        order_id = get_new_client_order_id(
-            is_buy=False,
-            trading_pair=trading_pair,
-            hbot_order_id_prefix=self.client_order_id_prefix,
-            max_id_len=self.client_order_id_max_length
-        )
+        caller_order_id = kwargs.pop("client_order_id", None)
+        if caller_order_id is not None:
+            order_id = str(caller_order_id)
+        else:
+            order_id = get_new_client_order_id(
+                is_buy=False,
+                trading_pair=trading_pair,
+                hbot_order_id_prefix=self.client_order_id_prefix,
+                max_id_len=self.client_order_id_max_length
+            )
         safe_ensure_future(self._create_order(
             trade_type=TradeType.SELL,
             order_id=order_id,
@@ -420,6 +428,9 @@ class ExchangePyBase(ExchangeBase, ABC):
         if order_type in [OrderType.LIMIT, OrderType.LIMIT_MAKER]:
             price = self.quantize_order_price(trading_pair, price)
         quantized_amount = self.quantize_order_amount(trading_pair=trading_pair, amount=amount)
+
+        if order_id in self._order_tracker.active_orders:
+            raise ValueError(f"Duplicate client order ID: {order_id} is already actively tracked. A unique ID is required per submission.")
 
         self.start_tracking_order(
             order_id=order_id,
