@@ -67,6 +67,30 @@ class TestUserStreamTrackerDataSource(IsolatedAsyncioWrapperTestCase):
         result = queue.get_nowait()
         self.assertEqual(result, message)
 
+    async def test_process_event_message_none_sentinel_is_ignored(self):
+        queue = asyncio.Queue()
+        await self.data_source._process_event_message(None, queue)
+        self.assertTrue(queue.empty())
+
+    async def test_process_websocket_messages_ignores_none_response_and_payload(self):
+        queue = asyncio.Queue()
+
+        class Response:
+            def __init__(self, data):
+                self.data = data
+
+        class WebSocket:
+            async def iter_messages(self):
+                yield None
+                yield Response(None)
+                yield Response({})
+                yield Response({"event": "valid"})
+
+        await self.data_source._process_websocket_messages(WebSocket(), queue)
+
+        self.assertEqual(queue.qsize(), 1)
+        self.assertEqual(queue.get_nowait(), {"event": "valid"})
+
     async def test_on_user_stream_interruption_no_ws_assistant(self):
         await self.data_source._on_user_stream_interruption(None)
 

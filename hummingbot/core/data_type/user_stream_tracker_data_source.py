@@ -75,11 +75,15 @@ class UserStreamTrackerDataSource(metaclass=ABCMeta):
 
     async def _process_websocket_messages(self, websocket_assistant: WSAssistant, queue: asyncio.Queue):
         async for ws_response in websocket_assistant.iter_messages():
+            if ws_response is None:
+                continue
             data = ws_response.data
+            if data is None:
+                continue
             await self._process_event_message(event_message=data, queue=queue)
 
-    async def _process_event_message(self, event_message: Dict[str, Any], queue: asyncio.Queue):
-        if len(event_message) > 0:
+    async def _process_event_message(self, event_message: Optional[Dict[str, Any]], queue: asyncio.Queue):
+        if event_message is not None and len(event_message) > 0:
             queue.put_nowait(event_message)
 
     async def _on_user_stream_interruption(self, websocket_assistant: Optional[WSAssistant]):
